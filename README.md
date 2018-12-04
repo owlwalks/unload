@@ -3,7 +3,7 @@
 [![GoDoc](https://godoc.org/github.com/owlwalks/unload?status.svg)](https://godoc.org/github.com/owlwalks/unload)
 [![Build Status](https://travis-ci.com/owlwalks/unload.svg?branch=master)](https://travis-ci.com/owlwalks/unload)
 
-*Unload* is an application (layer 7) load balancer written in Go. Aiming for simplicity and throughput.
+*Unload* is a layer 7 application load balancer written in Go. Aiming for simplicity and throughput.
 
 ### Example:
 ```golang
