@@ -3,6 +3,7 @@ package unload
 import (
 	"bufio"
 	"bytes"
+	"crypto/tls"
 	"errors"
 	"io"
 	"log"
@@ -54,6 +55,40 @@ func (p *Proxy) Listen(port int) {
 	}
 }
 
+func (p *Proxy) ListenTLS(port int, cert, key []byte) {
+	crt, err := tls.X509KeyPair(cert, key)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	cfg := &tls.Config{Certificates: []tls.Certificate{crt}}
+	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: port})
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer l.Close()
+
+	ln := tls.NewListener(l, cfg)
+	delay := 5 * time.Millisecond
+	for {
+		conn, e := ln.Accept()
+		if e != nil {
+			if ne, ok := e.(net.Error); ok && ne.Temporary() {
+				if max := 1 * time.Second; delay > max {
+					delay = max
+				}
+				time.Sleep(delay)
+				delay *= 2
+				continue
+			}
+			return
+		}
+		delay = 5 * time.Millisecond
+		src := newConn(conn)
+		go p.proxy(src)
+	}
+}
+
 func (p *Proxy) proxy(src *tcpConn) {
 	src.SetKeepAlive(true)
 	src.SetKeepAlivePeriod(3 * time.Minute)
@@ -63,6 +98,7 @@ func (p *Proxy) proxy(src *tcpConn) {
 	for {
 		header, err := readHeader(src, br)
 		if err != nil {
+			p.close(src)
 			return
 		}
 		dst = p.open(&net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 8090})
@@ -85,8 +121,10 @@ func (p *Proxy) proxy(src *tcpConn) {
 			}
 			close(derr)
 			close(uerr)
+			return
 		} else {
 			p.close(src)
+			return
 		}
 	}
 }
