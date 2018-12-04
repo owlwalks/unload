@@ -44,12 +44,19 @@ func (s *Scheduler) NextBackend(service string) net.SRV {
 	if !ok {
 		s.lookup(service)
 	}
+
 	if q == nil || q.Len() == 0 {
 		s.requeue(service)
 	}
 
-	q, _ = s.getQueue(service)
-	if q != nil && q.Len() > 0 {
+	return s.pop(service)
+}
+
+func (s *Scheduler) pop(service string) net.SRV {
+	s.Lock()
+	defer s.Unlock()
+	q, ok := s.backends[service]
+	if ok && q.Len() > 0 {
 		return heap.Pop(q).(net.SRV)
 	}
 
@@ -101,6 +108,13 @@ func (s *Scheduler) requeue(service string) {
 			if unordered[index]-rep >= 0 {
 				q = append(q, records[index])
 			}
+		}
+	}
+
+	for {
+		q = append(q, q...)
+		if len(q) > 50 {
+			break
 		}
 	}
 

@@ -48,6 +48,13 @@ func (c *tcpConn) SetKeepAlivePeriod(d time.Duration) error {
 	return nil
 }
 
+func (c *tcpConn) SetLinger(sec int) error {
+	if conn, ok := c.rwc.(*net.TCPConn); ok {
+		return conn.SetLinger(sec)
+	}
+	return nil
+}
+
 func (c *tcpConn) RemoteAddr() net.Addr {
 	return c.rwc.RemoteAddr()
 }

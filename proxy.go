@@ -121,6 +121,7 @@ func (p *Proxy) proxy(src *tcpConn) {
 				select {
 				case <-derr:
 					// downstream is closed, stop reading from upstream
+					dst.SetLinger(0)
 					dst.SetReadDeadline(time.Now())
 				case err = <-uerr:
 					// upstream is closed, force closing downstream
