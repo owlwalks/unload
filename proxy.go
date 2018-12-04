@@ -16,16 +16,20 @@ var (
 	errReadHeaderTimeout = errors.New("reading header timeout")
 )
 
+type Matcher func(uri, host []byte) string
+
 type Proxy struct {
 	sync.Mutex
-	sc    *Scheduler
-	conns map[string]map[*tcpConn]struct{}
+	sc      *Scheduler
+	conns   map[string]map[*tcpConn]struct{}
+	matcher Matcher
 }
 
-func NewProxy(relookup bool, interval time.Duration) *Proxy {
+func NewProxy(relookup bool, interval time.Duration, matchFn Matcher) *Proxy {
 	return &Proxy{
-		sc:    NewScheduler(relookup, interval),
-		conns: make(map[string]map[*tcpConn]struct{}),
+		sc:      NewScheduler(relookup, interval),
+		conns:   make(map[string]map[*tcpConn]struct{}),
+		matcher: matchFn,
 	}
 }
 
@@ -96,12 +100,17 @@ func (p *Proxy) proxy(src *tcpConn) {
 	defer putBufioReader(br)
 	var dst *tcpConn
 	for {
-		header, err := readHeader(src, br)
+		header, uri, host, err := readHeader(br)
 		if err != nil {
 			p.close(src)
 			return
 		}
-		dst = p.open(&net.TCPAddr{IP: net.IP{127, 0, 0, 1}, Port: 8090})
+		addr, err := p.resolve(uri, host)
+		if err != nil {
+			p.close(src)
+			return
+		}
+		dst = p.open(addr)
 		if dst != nil {
 			derr := make(chan error)
 			uerr := make(chan error)
@@ -126,39 +135,6 @@ func (p *Proxy) proxy(src *tcpConn) {
 		p.close(src)
 		return
 	}
-}
-
-func readHeader(src *tcpConn, br *bufio.Reader) ([]byte, error) {
-	tp := newTextprotoReader(br)
-	defer putTextprotoReader(tp)
-
-	l1, e := tp.ReadLineBytes()
-	if e != nil {
-		return nil, e
-	}
-
-	b := bytes.NewBuffer(l1)
-	b.ReadBytes(' ')
-	// first line, between first and second space
-	uri, _ := b.ReadBytes(' ')
-	if len(uri) > 0 {
-		// rm ' ' including from last read
-		src.uri = uri[:len(uri)-1]
-	}
-
-	l2, e := tp.ReadLineBytes()
-	if e != nil {
-		return nil, e
-	}
-
-	b = bytes.NewBuffer(l2)
-	b.ReadBytes(' ')
-	src.host, _ = b.ReadBytes('\n')
-
-	l1 = append(l1, byte('\r'), byte('\n'))
-	l2 = append(l2, byte('\r'), byte('\n'))
-
-	return append(l1, l2...), nil
 }
 
 func (p *Proxy) close(conn *tcpConn) {
@@ -212,6 +188,48 @@ func (p *Proxy) open(addr *net.TCPAddr) *tcpConn {
 	p.conns[saddr][c] = struct{}{}
 
 	return c
+}
+
+func (p *Proxy) resolve(uri, host []byte) (*net.TCPAddr, error) {
+	service := p.matcher(uri, host)
+	srv := p.sc.NextBackend(service)
+	addr, err := net.ResolveTCPAddr("tcp", srv.Target)
+	addr.Port = int(srv.Port)
+
+	return addr, err
+}
+
+func readHeader(br *bufio.Reader) ([]byte, []byte, []byte, error) {
+	tp := newTextprotoReader(br)
+	defer putTextprotoReader(tp)
+
+	l1, e := tp.ReadLineBytes()
+	if e != nil {
+		return nil, nil, nil, e
+	}
+
+	b := bytes.NewBuffer(l1)
+	b.ReadBytes(' ')
+	// first line, between first and second space
+	uri, _ := b.ReadBytes(' ')
+	if len(uri) > 0 && uri[len(uri)-1] == ' ' {
+		// rm ' ' including from last read
+		uri = uri[:len(uri)-1]
+	}
+
+	l2, e := tp.ReadLineBytes()
+	if e != nil {
+		return nil, nil, nil, e
+	}
+
+	b = bytes.NewBuffer(l2)
+	b.ReadBytes(' ')
+	host, _ := b.ReadBytes('\n')
+
+	l1 = append(l1, byte('\r'), byte('\n'))
+	l2 = append(l2, byte('\r'), byte('\n'))
+
+	return append(l1, l2...), uri, host, nil
 }
 
 func cp(dst io.Writer, src io.Reader, result chan error) {

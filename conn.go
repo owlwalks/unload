@@ -7,8 +7,6 @@ import (
 
 type tcpConn struct {
 	rwc  net.Conn
-	uri  []byte
-	host []byte
 	busy bool
 }
 
@@ -57,5 +55,5 @@ func (c *tcpConn) RemoteAddr() net.Addr {
 }
 
 func newConn(c net.Conn) *tcpConn {
-	return &tcpConn{c, nil, nil, false}
+	return &tcpConn{c, false}
 }
