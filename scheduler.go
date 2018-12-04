@@ -6,19 +6,21 @@ import (
 	"sync"
 )
 
-type backend struct {
-	target   string
-	priority uint
-	weight   uint
-}
+type (
+	Scheduler struct {
+		sync.Mutex
+		backends   map[string]*queue
+		discovered map[string][]backend
+	}
 
-type queue []backend
+	backend struct {
+		target   string
+		priority uint
+		weight   uint
+	}
 
-type Scheduler struct {
-	sync.Mutex
-	backends   map[string]*queue
-	discovered map[string][]backend
-}
+	queue []backend
+)
 
 func (q queue) Len() int           { return len(q) }
 func (q queue) Less(i, j int) bool { return q[i].priority < q[j].priority }

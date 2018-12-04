@@ -122,10 +122,9 @@ func (p *Proxy) proxy(src *tcpConn) {
 			close(derr)
 			close(uerr)
 			return
-		} else {
-			p.close(src)
-			return
 		}
+		p.close(src)
+		return
 	}
 }
 
@@ -179,9 +178,8 @@ func (p *Proxy) get(saddr string) *tcpConn {
 		for conn := range pool {
 			if conn.busy {
 				continue
-			} else {
-				return conn
 			}
+			return conn
 		}
 	}
 
