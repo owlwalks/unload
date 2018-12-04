@@ -79,9 +79,7 @@ func (p *Proxy) proxy(src *tcpConn) {
 					dst.SetReadDeadline(time.Now())
 				case err = <-uerr:
 					// upstream is closed, force closing downstream
-					if _, ok := err.(*net.OpError); ok {
-						p.close(dst)
-					}
+					p.close(dst)
 					p.close(src)
 				}
 			}
