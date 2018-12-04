@@ -111,13 +111,6 @@ func (s *Scheduler) requeue(service string) {
 		}
 	}
 
-	for {
-		q = append(q, q...)
-		if len(q) > 50 {
-			break
-		}
-	}
-
 	ptr := &q
 	heap.Init(ptr)
 	s.Lock()
