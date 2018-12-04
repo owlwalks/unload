@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net"
@@ -20,14 +21,13 @@ type Matcher func(uri, host []byte) string
 
 type Proxy struct {
 	sync.Mutex
-	sc      *Scheduler
+	Sch     *Scheduler
 	conns   map[string]map[*tcpConn]struct{}
 	matcher Matcher
 }
 
-func NewProxy(relookup bool, interval time.Duration, matchFn Matcher) *Proxy {
+func NewProxy(matchFn Matcher) *Proxy {
 	return &Proxy{
-		sc:      NewScheduler(relookup, interval),
 		conns:   make(map[string]map[*tcpConn]struct{}),
 		matcher: matchFn,
 	}
@@ -192,11 +192,12 @@ func (p *Proxy) open(addr *net.TCPAddr) *tcpConn {
 
 func (p *Proxy) resolve(uri, host []byte) (*net.TCPAddr, error) {
 	service := p.matcher(uri, host)
-	srv := p.sc.NextBackend(service)
-	addr, err := net.ResolveTCPAddr("tcp", srv.Target)
-	addr.Port = int(srv.Port)
-
-	return addr, err
+	srv := p.Sch.NextBackend(service)
+	addr, err := net.ResolveTCPAddr("tcp", fmt.Sprintf("%s:%d", srv.Target, srv.Port))
+	if err != nil {
+		return nil, err
+	}
+	return addr, nil
 }
 
 func readHeader(br *bufio.Reader) ([]byte, []byte, []byte, error) {

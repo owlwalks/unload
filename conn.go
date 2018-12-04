@@ -12,8 +12,7 @@ type tcpConn struct {
 
 func (c *tcpConn) Read(b []byte) (int, error) {
 	n, err := c.rwc.Read(b)
-	c.busy = true
-	if err != nil {
+	if c.busy = true; err != nil {
 		c.busy = false
 	}
 	return n, err
@@ -21,8 +20,7 @@ func (c *tcpConn) Read(b []byte) (int, error) {
 
 func (c *tcpConn) Write(b []byte) (int, error) {
 	n, err := c.rwc.Write(b)
-	c.busy = true
-	if err != nil {
+	if c.busy = true; err != nil {
 		c.busy = false
 	}
 	return n, err

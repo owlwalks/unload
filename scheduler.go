@@ -8,25 +8,28 @@ import (
 	"time"
 )
 
-type (
-	Scheduler struct {
-		sync.Mutex
-		name             string // name in _service._proto.name.
-		backends         map[string]*queue
-		services         map[string][]net.SRV
-		Relookup         bool
-		RelookupInterval time.Duration
-	}
+type Lookup func(service string) []net.SRV
 
-	queue []net.SRV
-)
+type Scheduler struct {
+	sync.Mutex
+	// name in _service._proto.name.
+	name             string
+	backends         map[string]*queue
+	services         map[string][]net.SRV
+	Relookup         bool
+	RelookupInterval time.Duration
+	CustomLookup     Lookup
+}
 
-func NewScheduler(relookup bool, interval time.Duration) *Scheduler {
+type queue []net.SRV
+
+func NewScheduler(relookup bool, interval time.Duration, custom Lookup) *Scheduler {
 	s := Scheduler{
 		backends:         make(map[string]*queue),
 		services:         make(map[string][]net.SRV),
 		Relookup:         relookup,
 		RelookupInterval: interval,
+		CustomLookup:     custom,
 	}
 
 	if relookup {
@@ -107,17 +110,22 @@ func (s *Scheduler) requeue(service string) {
 }
 
 func (s *Scheduler) lookup(service string) error {
-	_, addrs, err := net.LookupSRV(service, "tcp", s.name)
-	if err != nil {
-		return err
-	}
-	// use values here
-	targets := make([]net.SRV, len(addrs))
-	for i := 0; i < len(addrs); i++ {
-		targets[i] = *addrs[i]
+	var records []net.SRV
+	if s.CustomLookup != nil {
+		records = s.CustomLookup(service)
+	} else {
+		_, addrs, err := net.LookupSRV(service, "tcp", s.name)
+		if err != nil {
+			return err
+		}
+		// use values here
+		records = make([]net.SRV, len(addrs))
+		for i := 0; i < len(addrs); i++ {
+			records[i] = *addrs[i]
+		}
 	}
 	s.Lock()
-	s.services[service] = targets
+	s.services[service] = records
 	s.Unlock()
 	return nil
 }
