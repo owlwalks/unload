@@ -8,8 +8,11 @@ import (
 	"time"
 )
 
+// Lookup is custom DNS lookup function
+// Use for static routing
 type Lookup func(service string) []net.SRV
 
+// Scheduler schedule backends in weighted round-robin
 type Scheduler struct {
 	sync.Mutex
 	// name in _service._proto.name.
@@ -23,6 +26,8 @@ type Scheduler struct {
 
 type queue []net.SRV
 
+// NewScheduler makes a new scheduler
+// It also starts SRV updating periodically if relookup is set to true
 func NewScheduler(relookup bool, interval time.Duration, custom Lookup) *Scheduler {
 	s := Scheduler{
 		backends:         make(map[string]*queue),
@@ -39,6 +44,7 @@ func NewScheduler(relookup bool, interval time.Duration, custom Lookup) *Schedul
 	return &s
 }
 
+// NextBackend returns next backend in queue
 func (s *Scheduler) NextBackend(service string) net.SRV {
 	q, ok := s.getQueue(service)
 	if !ok {

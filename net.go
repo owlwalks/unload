@@ -7,7 +7,7 @@ import (
 	"sync"
 )
 
-//see https://golang.org/src/net
+// see https://golang.org/src/net
 
 var (
 	bufioReaderPool     sync.Pool

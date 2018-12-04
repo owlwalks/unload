@@ -17,8 +17,11 @@ var (
 	errReadHeaderTimeout = errors.New("reading header timeout")
 )
 
+// Matcher is service name matching function
+// Use for dynamic routing
 type Matcher func(uri, host []byte) string
 
+// Proxy is a load balancer
 type Proxy struct {
 	sync.Mutex
 	Sch     *Scheduler
@@ -26,6 +29,7 @@ type Proxy struct {
 	matcher Matcher
 }
 
+// NewProxy makes a new proxy
 func NewProxy(matchFn Matcher) *Proxy {
 	return &Proxy{
 		conns:   make(map[string]map[*tcpConn]struct{}),
@@ -33,6 +37,7 @@ func NewProxy(matchFn Matcher) *Proxy {
 	}
 }
 
+// Listen starts a TCP server
 func (p *Proxy) Listen(port int) {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: port})
 	if err != nil {
@@ -59,6 +64,7 @@ func (p *Proxy) Listen(port int) {
 	}
 }
 
+// ListenTLS starts an encrypted TCP server
 func (p *Proxy) ListenTLS(port int, cfg *tls.Config) {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: port})
 	if err != nil {
