@@ -106,7 +106,9 @@ func (s *Scheduler) requeue(service string) {
 
 	ptr := &q
 	heap.Init(ptr)
+	s.Lock()
 	s.backends[service] = ptr
+	s.Unlock()
 }
 
 func (s *Scheduler) lookup(service string) error {
