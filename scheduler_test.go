@@ -6,14 +6,14 @@ import (
 )
 
 func Test_scheduler_requeue(t *testing.T) {
-	s := NewScheduler(false, 0)
+	s := NewScheduler(false, 0, nil)
 
 	name := "_user._tcp."
 
 	s.services[name] = []net.SRV{
-		{"user1.staging.local.", 80, 0, 30},
-		{"user2.staging.local.", 80, 0, 20},
-		{"user3.staging.local.", 80, 0, 40},
+		{Target: "user1.staging.local.", Port: 80, Priority: 0, Weight: 30},
+		{Target: "user2.staging.local.", Port: 80, Priority: 0, Weight: 20},
+		{Target: "user3.staging.local.", Port: 80, Priority: 0, Weight: 40},
 	}
 
 	schedule := [...]string{
@@ -29,9 +29,9 @@ func Test_scheduler_requeue(t *testing.T) {
 	}
 
 	s.services[name] = []net.SRV{
-		{"user1.staging.local.", 80, 0, 30},
-		{"user2.staging.local.", 80, 0, 20},
-		{"user3.staging.local.", 80, 10, 40},
+		{Target: "user1.staging.local.", Port: 80, Priority: 0, Weight: 30},
+		{Target: "user2.staging.local.", Port: 80, Priority: 0, Weight: 20},
+		{Target: "user3.staging.local.", Port: 80, Priority: 10, Weight: 40},
 	}
 
 	schedule = [...]string{
