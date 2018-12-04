@@ -18,13 +18,13 @@ var (
 
 type Proxy struct {
 	sync.Mutex
-	sc    Scheduler
+	sc    *Scheduler
 	conns map[string]map[*tcpConn]struct{}
 }
 
-func NewProxy() Proxy {
-	return Proxy{
-		sc:    NewScheduler(),
+func NewProxy(relookup bool, interval time.Duration) *Proxy {
+	return &Proxy{
+		sc:    NewScheduler(relookup, interval),
 		conns: make(map[string]map[*tcpConn]struct{}),
 	}
 }

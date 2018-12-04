@@ -1,18 +1,19 @@
 package unload
 
 import (
+	"net"
 	"testing"
 )
 
 func Test_scheduler_requeue(t *testing.T) {
-	s := NewScheduler()
+	s := NewScheduler(false, 0)
 
-	name := "_user._tcp.staging.local."
+	name := "_user._tcp."
 
-	s.discovered[name] = []backend{
-		{"user1.staging.local.", 0, 30},
-		{"user2.staging.local.", 0, 20},
-		{"user3.staging.local.", 0, 40},
+	s.services[name] = []net.SRV{
+		{"user1.staging.local.", 80, 0, 30},
+		{"user2.staging.local.", 80, 0, 20},
+		{"user3.staging.local.", 80, 0, 40},
 	}
 
 	schedule := [...]string{
@@ -21,16 +22,16 @@ func Test_scheduler_requeue(t *testing.T) {
 	}
 
 	for i := 0; i < 18; i++ {
-		target := s.NextBackend(name)
-		if string(target[4]) != schedule[i] {
+		next := s.NextBackend(name)
+		if string(next.Target[4]) != schedule[i] {
 			t.Fail()
 		}
 	}
 
-	s.discovered[name] = []backend{
-		{"user1.staging.local.", 0, 30},
-		{"user2.staging.local.", 0, 20},
-		{"user3.staging.local.", 10, 40},
+	s.services[name] = []net.SRV{
+		{"user1.staging.local.", 80, 0, 30},
+		{"user2.staging.local.", 80, 0, 20},
+		{"user3.staging.local.", 80, 10, 40},
 	}
 
 	schedule = [...]string{
@@ -39,8 +40,8 @@ func Test_scheduler_requeue(t *testing.T) {
 	}
 
 	for i := 0; i < 18; i++ {
-		target := s.NextBackend(name)
-		if string(target[4]) != schedule[i] {
+		next := s.NextBackend(name)
+		if string(next.Target[4]) != schedule[i] {
 			t.Fail()
 		}
 	}
