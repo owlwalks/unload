@@ -18,13 +18,13 @@ var (
 type Proxy struct {
 	sync.Mutex
 	sc    Scheduler
-	conns map[*tcpConn]struct{}
+	conns map[string]map[*tcpConn]struct{}
 }
 
 func NewProxy() Proxy {
 	return Proxy{
 		sc:    NewScheduler(),
-		conns: make(map[*tcpConn]struct{}),
+		conns: make(map[string]map[*tcpConn]struct{}),
 	}
 }
 
@@ -128,20 +128,55 @@ func readHeader(src *tcpConn, br *bufio.Reader) ([]byte, error) {
 
 func (p *Proxy) close(conn *tcpConn) {
 	conn.Close()
+	saddr := conn.RemoteAddr().String()
 	p.Lock()
 	defer p.Unlock()
-	delete(p.conns, conn)
+	if _, ok := p.conns[saddr]; ok {
+		delete(p.conns[saddr], conn)
+	}
+}
+
+func (p *Proxy) get(saddr string) *tcpConn {
+	p.Lock()
+	defer p.Unlock()
+	if pool, ok := p.conns[saddr]; ok {
+		for conn := range pool {
+			if conn.busy {
+				continue
+			} else {
+				return conn
+			}
+		}
+	}
+
+	return nil
 }
 
 func (p *Proxy) open(addr *net.TCPAddr) *tcpConn {
-	// need to reuse conn, keep track of its state
+	saddr := addr.String()
+	c := p.get(saddr)
+	if c != nil {
+		// reset deadline because it was set to break io.Copy (blocked) in last routine
+		c.SetReadDeadline(time.Time{})
+		return c
+	}
+
 	conn, e := net.DialTCP("tcp", nil, addr)
 	if e != nil {
 		return nil
 	}
-	c := newConn(conn)
+
+	c = newConn(conn)
 	c.SetKeepAlive(true)
 	c.SetKeepAlivePeriod(3 * time.Minute)
+
+	p.Lock()
+	defer p.Unlock()
+	if _, ok := p.conns[saddr]; !ok {
+		p.conns[saddr] = make(map[*tcpConn]struct{})
+	}
+	p.conns[saddr][c] = struct{}{}
+
 	return c
 }
 
