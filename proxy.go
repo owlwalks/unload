@@ -59,13 +59,7 @@ func (p *Proxy) Listen(port int) {
 	}
 }
 
-func (p *Proxy) ListenTLS(port int, cert, key []byte) {
-	crt, err := tls.X509KeyPair(cert, key)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	cfg := &tls.Config{Certificates: []tls.Certificate{crt}}
+func (p *Proxy) ListenTLS(port int, cfg *tls.Config) {
 	l, err := net.ListenTCP("tcp", &net.TCPAddr{Port: port})
 	if err != nil {
 		log.Fatal(err)
