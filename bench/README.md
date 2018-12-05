@@ -1,6 +1,6 @@
 Unload:
 ```shell
-Running 1m test @ http://192.168.56.1:8090/bench
+Running 1m test @ http://unload.local:8090/bench
   20 threads and 1000 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
     Latency   183.18ms   99.59ms 826.08ms   71.50%
@@ -33,5 +33,3 @@ Running 1m test @ http://test.traefik:8000/bench
 Requests/sec:   5754.70
 Transfer/sec:    573.22KB
 ```
-
-To be updated...
