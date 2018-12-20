@@ -4,17 +4,12 @@ import (
 	"bufio"
 	"bytes"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
 	"sync"
 	"time"
-)
-
-var (
-	errReadHeaderTimeout = errors.New("reading header timeout")
 )
 
 // Matcher is service name matching function
@@ -54,7 +49,6 @@ func (p *Proxy) ListenTLS(port int, cfg *tls.Config) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer l.Close()
 
 	ln := tls.NewListener(l, cfg)
 	defer ln.Close()
