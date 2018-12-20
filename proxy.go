@@ -43,25 +43,9 @@ func (p *Proxy) Listen(port int) {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	defer l.Close()
-	delay := 5 * time.Millisecond
-	for {
-		conn, e := l.AcceptTCP()
-		if e != nil {
-			if ne, ok := e.(net.Error); ok && ne.Temporary() {
-				if max := 1 * time.Second; delay > max {
-					delay = max
-				}
-				time.Sleep(delay)
-				delay *= 2
-				continue
-			}
-			return
-		}
-		delay = 5 * time.Millisecond
-		src := newConn(conn)
-		go p.proxy(src)
-	}
+	p.listen(l)
 }
 
 // ListenTLS starts an encrypted TCP server
@@ -73,9 +57,15 @@ func (p *Proxy) ListenTLS(port int, cfg *tls.Config) {
 	defer l.Close()
 
 	ln := tls.NewListener(l, cfg)
+	defer ln.Close()
+	p.listen(ln)
+}
+
+// listen starts listening on tcp connections.
+func (p *Proxy) listen(l net.Listener) {
 	delay := 5 * time.Millisecond
 	for {
-		conn, e := ln.Accept()
+		conn, e := l.Accept()
 		if e != nil {
 			if ne, ok := e.(net.Error); ok && ne.Temporary() {
 				if max := 1 * time.Second; delay > max {
