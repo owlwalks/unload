@@ -3,28 +3,8 @@
 [![GoDoc](https://godoc.org/github.com/owlwalks/unload?status.svg)](https://godoc.org/github.com/owlwalks/unload)
 [![Build Status](https://travis-ci.com/owlwalks/unload.svg?branch=master)](https://travis-ci.com/owlwalks/unload)
 
-*Unload* is a layer 7 application load balancer written in Go. Aiming for simplicity and throughput.
+Minimal gRPC load balancer (h2c - h2 without TLS) that can be used for internal traffic.
 
-### Example:
-```golang
-sc := unload.NewScheduler(true, 10*time.Second, nil)
-p := unload.NewProxy(nil)
-p.ListenTLS(443, cfg)
-```
-Complete example is [here](https://github.com/owlwalks/unload/blob/master/unload/main.go).
+_The author has repurposed the life of this project, it was a generic load balancer originally_.
 
-### Features:
-  - [x] Service discovery (SRV records)
-  - [x] Dynamic routing
-  - [x] Static routing
-  - [x] Weighted round-robin
-  - [x] TCP pooling on backend side
-  - [x] TLS
-
-### Todo:
-- [ ] HTTP/2
-- [ ] Healthcheck
-
-### Benchmark:
-* Traefik - [here](https://github.com/owlwalks/unload/tree/master/bench)
-* gobetween - Todo
+Notes: The heavy lifting is done by [h2c](https://github.com/golang/net/tree/master/http2/h2c), if you want to dive into protocol specifics (negotiation, stream, frames processing or data encoding) please head [here](https://github.com/golang/net/tree/master/http2).
