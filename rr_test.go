@@ -6,8 +6,7 @@ import (
 
 func Test_roundrobin(t *testing.T) {
 	gResolv.resolv["foo"] = []string{"foo", "bar"}
-	gResolv.index["foo"] = index{idx: 0, max: 1}
-	gNext = []int64{-1}
+	gResolv.index["foo"] = -1
 	type args struct {
 		host string
 	}

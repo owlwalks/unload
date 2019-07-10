@@ -12,7 +12,7 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
-var proxy = &httputil.ReverseProxy{
+var h2cProxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
 		target, ok := roundrobin(req.URL.Host)
 		if ok {
@@ -27,19 +27,29 @@ var proxy = &httputil.ReverseProxy{
 	},
 }
 
+var proxy = &httputil.ReverseProxy{
+	Director: func(req *http.Request) {
+		target, ok := roundrobin(req.URL.Host)
+		if ok {
+			req.URL.Host = target
+		}
+	},
+}
+
 func main() {
 	log.SetFlags(log.Llongfile)
 	server := &http.Server{
 		Addr:    ":50051",
-		Handler: h2c.NewHandler(http.HandlerFunc(grpcHandler), &http2.Server{}),
+		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{}),
 	}
+	go startCtl()
 	log.Fatal(server.ListenAndServe())
 }
 
-func grpcHandler(w http.ResponseWriter, r *http.Request) {
+func handler(w http.ResponseWriter, r *http.Request) {
 	if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
-		proxy.ServeHTTP(w, r)
+		h2cProxy.ServeHTTP(w, r)
 	} else {
-		http.NotFound(w, r)
+		proxy.ServeHTTP(w, r)
 	}
 }

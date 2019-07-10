@@ -1,45 +1,64 @@
 package main
 
 import (
-	"encoding/json"
-	"net/http"
+	"sync"
+)
+
+var (
+	gResolv = struct {
+		resolv map[string][]string
+		dst    map[string]struct{}
+		index  map[string]int
+		sync.RWMutex
+	}{
+		resolv: map[string][]string{},
+		dst:    map[string]struct{}{},
+		index:  map[string]int{},
+	}
 )
 
 type (
 	conf struct {
-		Host    string   `json:"host"`
-		Targets []string `json:"targets"`
-	}
-	resErr struct {
-		Err string `json:"err"`
+		host   string
+		target string
+		dst    string
 	}
 )
 
-func setConf(w http.ResponseWriter, r *http.Request) {
-	var cfs []conf
-	err := json.NewDecoder(r.Body).Decode(&cfs)
-	if err != nil {
-		_ = json.NewEncoder(w).Encode(resErr{err.Error()})
+func newConf(host string, target string) conf {
+	return conf{
+		host:   host,
+		target: target,
+		dst:    host + target,
 	}
-	gResolv.Lock()
-	for _, c := range cfs {
-		if _, ok := gResolv.resolv[c.Host]; !ok {
-			gResolv.index[c.Host] = index{
-				idx: len(gResolv.resolv) - 1,
-				max: int64(len(c.Targets)) - 1,
-			}
-			gNext = append(gNext, -1)
-		}
-		gResolv.resolv[c.Host] = c.Targets
-	}
-	gResolv.Unlock()
-	_ = json.NewEncoder(w).Encode(struct{}{})
 }
 
-func info(w http.ResponseWriter, r *http.Request) {
-	var resolv map[string][]string
-	gResolv.RLock()
-	resolv = gResolv.resolv
-	gResolv.RUnlock()
-	_ = json.NewEncoder(w).Encode(resolv)
+func rmDst(c conf) {
+	gResolv.Lock()
+	defer gResolv.Unlock()
+	if _, ok := gResolv.dst[c.dst]; !ok {
+		return
+	}
+	delete(gResolv.dst, c.dst)
+	for i, target := range gResolv.resolv[c.host] {
+		if target == c.target {
+			gResolv.resolv[c.host] = append(gResolv.resolv[c.host][:i], gResolv.resolv[c.host][i+1:]...)
+			gResolv.index[c.host] = -1
+			break
+		}
+	}
+}
+
+func addDst(c conf) {
+	gResolv.Lock()
+	defer gResolv.Unlock()
+	if _, ok := gResolv.dst[c.dst]; !ok {
+		gResolv.dst[c.dst] = struct{}{}
+	}
+	if _, ok := gResolv.resolv[c.host]; !ok {
+		gResolv.resolv[c.host] = []string{c.target}
+	} else {
+		gResolv.resolv[c.host] = append(gResolv.resolv[c.host], c.target)
+	}
+	gResolv.index[c.host] = -1
 }

@@ -1,50 +1,33 @@
 package main
 
-import (
-	"sync"
-	"sync/atomic"
-)
-
-var (
-	gResolv = struct {
-		resolv map[string][]string
-		index  map[string]index
-		sync.RWMutex
-	}{
-		resolv: map[string][]string{},
-		index:  map[string]index{},
-	}
-	gNext = []int64{}
-)
-
-type index struct {
-	idx int
-	max int64
-}
-
 func roundrobin(host string) (string, bool) {
 	var (
-		idx     index
-		ok      bool
-		targets []string
+		idx, max int
+		ok       bool
+		next     string
+		targets  []string
 	)
 	gResolv.RLock()
 	idx, ok = gResolv.index[host]
-	targets = gResolv.resolv[host]
+	targets = make([]string, len(gResolv.resolv[host]))
+	copy(targets, gResolv.resolv[host])
 	gResolv.RUnlock()
-	var next string
-	if !ok || idx.max < 0 {
+	max = len(targets)
+	if !ok || max == 0 {
 		return next, false
 	}
-	if idx.max == 0 {
+	if max == 1 {
 		return targets[0], true
 	}
-	incr := atomic.AddInt64(&gNext[idx.idx], 1)
-	if incr > idx.max {
-		incr = 0
-		atomic.StoreInt64(&gNext[idx.idx], -1)
-	} else {
-		atomic.StoreInt64(&gNext[idx.idx], incr)
+	idx++
+	if idx >= max {
+		idx = -1
 	}
-	return targets[incr], true
+	gResolv.Lock()
+	gResolv.index[host] = idx
+	gResolv.Unlock()
+	if idx < 0 {
+		idx = 0
+	}
+	return targets[idx], true
 }
