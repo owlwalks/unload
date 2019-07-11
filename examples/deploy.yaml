@@ -88,7 +88,8 @@ spec:
       serviceAccountName: unload-ingress-sa
       containers:
       - name: unload
-        image: TO_BE_REPLACED
+        image: quay.io/owlwalks/unload
+        imagePullPolicy: Always
         resources:
           limits:
             cpu: 200m
