@@ -5,8 +5,10 @@ import (
 )
 
 func Test_roundrobin(t *testing.T) {
-	gResolv.resolv["foo"] = []string{"foo", "bar"}
-	gResolv.index["foo"] = -1
+	r := newRing(2)
+	r.value = "foo"
+	r.next().value = "bar"
+	gResolv.resolv["foo"] = r
 	type args struct {
 		host string
 	}

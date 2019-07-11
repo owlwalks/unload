@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
 	"log"
 	"net"
@@ -12,13 +13,18 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
+type notfound struct{}
+
 var h2cProxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
 		target, ok := roundrobin(req.URL.Host)
-		if ok {
-			req.URL.Scheme = "https"
-			req.URL.Host = target
+		if !ok {
+			ctx := context.WithValue(req.Context(), notfound{}, struct{}{})
+			req = req.WithContext(ctx)
+			return
 		}
+		req.URL.Scheme = "https"
+		req.URL.Host = target
 	},
 	Transport: &http2.Transport{
 		DialTLS: func(netw, addr string, cfg *tls.Config) (net.Conn, error) {
@@ -30,9 +36,12 @@ var h2cProxy = &httputil.ReverseProxy{
 var proxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
 		target, ok := roundrobin(req.URL.Host)
-		if ok {
-			req.URL.Host = target
+		if !ok {
+			ctx := context.WithValue(req.Context(), notfound{}, struct{}{})
+			req = req.WithContext(ctx)
+			return
 		}
+		req.URL.Host = target
 	},
 }
 
@@ -47,6 +56,12 @@ func main() {
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	_, found := ctx.Value(notfound{}).(struct{})
+	if !found {
+		http.NotFound(w, r)
+		return
+	}
 	if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 		h2cProxy.ServeHTTP(w, r)
 	} else {

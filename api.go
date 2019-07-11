@@ -6,14 +6,10 @@ import (
 
 var (
 	gResolv = struct {
-		resolv map[string][]string
-		dst    map[string]struct{}
-		index  map[string]int
+		resolv map[string]*ring
 		sync.RWMutex
 	}{
-		resolv: map[string][]string{},
-		dst:    map[string]struct{}{},
-		index:  map[string]int{},
+		resolv: map[string]*ring{},
 	}
 )
 
@@ -36,14 +32,17 @@ func newConf(host string, target string) conf {
 func rmDst(c conf) {
 	gResolv.Lock()
 	defer gResolv.Unlock()
-	if _, ok := gResolv.dst[c.dst]; !ok {
+	r, ok := gResolv.resolv[c.dst]
+	if !ok {
 		return
 	}
-	delete(gResolv.dst, c.dst)
-	for i, target := range gResolv.resolv[c.host] {
-		if target == c.target {
-			gResolv.resolv[c.host] = append(gResolv.resolv[c.host][:i], gResolv.resolv[c.host][i+1:]...)
-			gResolv.index[c.host] = -1
+	if r.len() == 1 && r.value == c.target {
+		delete(gResolv.resolv, c.dst)
+		return
+	}
+	for p := r.next(); p != r; p = p.nxt {
+		if p.value == c.target {
+			p.unlink(1)
 			break
 		}
 	}
@@ -52,13 +51,22 @@ func rmDst(c conf) {
 func addDst(c conf) {
 	gResolv.Lock()
 	defer gResolv.Unlock()
-	if _, ok := gResolv.dst[c.dst]; !ok {
-		gResolv.dst[c.dst] = struct{}{}
-	}
-	if _, ok := gResolv.resolv[c.host]; !ok {
-		gResolv.resolv[c.host] = []string{c.target}
+	r, ok := gResolv.resolv[c.dst]
+	n := newRing(1)
+	n.value = c.target
+	if !ok {
+		gResolv.resolv[c.host] = n
 	} else {
-		gResolv.resolv[c.host] = append(gResolv.resolv[c.host], c.target)
+		var skip bool
+		// dedup
+		for p := r.next(); p != r; p = p.nxt {
+			if p.value == c.target {
+				skip = true
+				break
+			}
+		}
+		if !skip {
+			r.link(n)
+		}
 	}
-	gResolv.index[c.host] = -1
 }
