@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"crypto/tls"
 	"flag"
 	"log"
@@ -9,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"time"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -16,18 +16,14 @@ import (
 	"k8s.io/klog"
 )
 
-type notfound struct{}
-
 var h2cProxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
 		target, ok := roundrobin(req.URL.Host)
-		if !ok {
-			ctx := context.WithValue(req.Context(), notfound{}, struct{}{})
-			req = req.WithContext(ctx)
-			return
-		}
+		req.URL.Host = ""
 		req.URL.Scheme = "https"
-		req.URL.Host = target
+		if ok {
+			req.URL.Host = target + ":50051"
+		}
 	},
 	Transport: &http2.Transport{
 		DialTLS: func(netw, addr string, cfg *tls.Config) (net.Conn, error) {
@@ -39,12 +35,11 @@ var h2cProxy = &httputil.ReverseProxy{
 var proxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
 		target, ok := roundrobin(req.URL.Host)
-		if !ok {
-			ctx := context.WithValue(req.Context(), notfound{}, struct{}{})
-			req = req.WithContext(ctx)
-			return
+		req.URL.Host = ""
+		req.URL.Scheme = "http"
+		if ok {
+			req.URL.Host = target
 		}
-		req.URL.Host = target
 	},
 }
 
@@ -59,20 +54,19 @@ func main() {
 	}
 	log.SetFlags(log.Llongfile)
 	server := &http.Server{
-		Addr:    ":50051",
-		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{}),
+		Addr: ":50051",
+		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{
+			IdleTimeout: 10 * time.Minute,
+		}),
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  10 * time.Minute,
 	}
 	go startCtl(config)
 	log.Fatal(server.ListenAndServe())
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	_, found := ctx.Value(notfound{}).(struct{})
-	if !found {
-		http.NotFound(w, r)
-		return
-	}
 	if r.ProtoMajor == 2 && strings.Contains(r.Header.Get("Content-Type"), "application/grpc") {
 		h2cProxy.ServeHTTP(w, r)
 	} else {
