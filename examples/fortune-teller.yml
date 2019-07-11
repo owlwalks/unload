@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fortune-teller-app-deploy
+  namespace: default
+  labels:
+    app: fortune-teller-app
+spec:
+  selector:
+    matchLabels:
+      app: fortune-teller-app
+  template:
+    metadata:
+      labels:
+        app: fortune-teller-app
+      annotations:
+        unload.ingress.k8s.io/grpc-hostname: teller.local
+    spec:
+      containers:
+      - name: fortune-teller-app
+        image: quay.io/kubernetes-ingress-controller/grpc-fortune-teller:0.1
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+        ports:
+        - name: grpc
+          containerPort: 50051
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortune-teller-app
+  namespace: default
+spec:
+  clusterIP: None
+  selector:
+    app: fortune-teller-app
+  ports:
+  - protocol: TCP
+    port: 50051
+    targetPort: grpc
