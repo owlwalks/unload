@@ -9,8 +9,8 @@ _The author has repurposed the life of this project, it was originally a generic
 
 ## How-to
 
+* [Deploy to Kubernetes](examples)
 * [Develop](docs/dev)
-* [Deploy](examples)
 
 ## Notes
 For protocol specifics (negotiation, stream, frames processing or data encoding) please head [here](https://github.com/golang/net/tree/master/http2/h2c) and [here](https://github.com/golang/net/tree/master/http2).
