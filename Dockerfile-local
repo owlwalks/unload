@@ -1,0 +1,4 @@
+FROM golang
+WORKDIR src/unload
+COPY . .
+CMD ["tail", "-f", "/dev/null"]

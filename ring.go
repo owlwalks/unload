@@ -1,6 +1,6 @@
-package main
-
 // https://github.com/golang/go/tree/master/src/container/ring
+
+package main
 
 type ring struct {
 	nxt, prv *ring

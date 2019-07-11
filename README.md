@@ -5,6 +5,12 @@
 
 Minimal gRPC load balancer (h2c - h2 without TLS) that can be used for internal traffic.
 
-_The author has repurposed the life of this project, it was a generic load balancer originally_.
+_The author has repurposed the life of this project, it was originally a generic load balancer_.
 
-Notes: The heavy lifting is done by [h2c](https://github.com/golang/net/tree/master/http2/h2c), if you want to dive into protocol specifics (negotiation, stream, frames processing or data encoding) please head [here](https://github.com/golang/net/tree/master/http2).
+## How-to
+
+* [Develop](docs/dev)
+* [Deploy](examples)
+
+## Notes
+For protocol specifics (negotiation, stream, frames processing or data encoding) please head [here](https://github.com/golang/net/tree/master/http2/h2c) and [here](https://github.com/golang/net/tree/master/http2).

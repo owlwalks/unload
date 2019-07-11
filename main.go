@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"crypto/tls"
+	"flag"
 	"log"
 	"net"
 	"net/http"
@@ -11,6 +12,8 @@ import (
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/klog"
 )
 
 type notfound struct{}
@@ -46,12 +49,20 @@ var proxy = &httputil.ReverseProxy{
 }
 
 func main() {
+	var kubeconfig, master string
+	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
+	flag.StringVar(&master, "master", "", "master url")
+	flag.Parse()
+	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
+	if err != nil {
+		klog.Fatal(err)
+	}
 	log.SetFlags(log.Llongfile)
 	server := &http.Server{
 		Addr:    ":50051",
 		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{}),
 	}
-	go startCtl()
+	go startCtl(config)
 	log.Fatal(server.ListenAndServe())
 }
 
