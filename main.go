@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -51,13 +50,12 @@ func main() {
 	if err != nil {
 		klog.Fatal(err)
 	}
-	log.SetFlags(log.Llongfile)
 	server := &http.Server{
 		Addr:    ":50051",
 		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{}),
 	}
 	go startCtl(config)
-	log.Fatal(server.ListenAndServe())
+	klog.Fatal(server.ListenAndServe())
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {
