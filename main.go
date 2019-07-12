@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
-	"time"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
@@ -18,7 +17,7 @@ import (
 
 var h2cProxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
-		target, ok := roundrobin(req.URL.Host)
+		target, ok := roundrobin(req.Host)
 		req.URL.Host = ""
 		req.URL.Scheme = "https"
 		if ok {
@@ -34,7 +33,7 @@ var h2cProxy = &httputil.ReverseProxy{
 
 var proxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
-		target, ok := roundrobin(req.URL.Host)
+		target, ok := roundrobin(req.Host)
 		req.URL.Host = ""
 		req.URL.Scheme = "http"
 		if ok {
@@ -54,13 +53,8 @@ func main() {
 	}
 	log.SetFlags(log.Llongfile)
 	server := &http.Server{
-		Addr: ":50051",
-		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{
-			IdleTimeout: 10 * time.Minute,
-		}),
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 10 * time.Second,
-		IdleTimeout:  10 * time.Minute,
+		Addr:    ":50051",
+		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{}),
 	}
 	go startCtl(config)
 	log.Fatal(server.ListenAndServe())

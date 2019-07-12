@@ -24,6 +24,8 @@ $ vi /etc/hosts
 git clone --depth=1 https://github.com/kubernetes/ingress-nginx.git
 grpcurl -v \
         -plaintext \
+        -authority "teller.local" \
         -proto ingress-nginx/images/grpc-fortune-teller/proto/fortune/fortune.proto \
-        teller.local:50051 build.stack.fortune.FortuneTeller/Predict
+        localhost:50051 \
+        build.stack.fortune.FortuneTeller/Predict
 ```
