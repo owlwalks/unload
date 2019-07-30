@@ -105,6 +105,7 @@ metadata:
   namespace: default
 spec:
   type: NodePort
+  externalTrafficPolicy: Local
   selector:
     app: unload
   ports:

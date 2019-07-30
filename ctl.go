@@ -66,9 +66,8 @@ func (c *controller) updateLb(key string) error {
 	if !ok {
 		return nil
 	}
-	if pod.Status.Phase != v1.PodRunning {
+	if pod.Status.Phase != v1.PodRunning || pod.DeletionTimestamp != nil || len(pod.Status.ContainerStatuses) == 0 || !pod.Status.ContainerStatuses[0].Ready {
 		return nil
-
 	}
 	annotations := pod.GetAnnotations()
 	if host, ok := annotations[unloadIngressHostname]; ok {
