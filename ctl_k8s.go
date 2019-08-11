@@ -17,9 +17,9 @@ import (
 )
 
 const (
-	unloadPodPort             = 50051
-	unloadIngressHostname     = "unload.ingress.k8s.io/grpc-hostname"
-	unloadElbv2TargetGroupArn = "unload.ingress.k8s.io/aws-elbv2-target-group-arn"
+	unloadPodPort           = 50051
+	unloadIngressHostname   = "unload.ingress.k8s.io/grpc-hostname"
+	unloadNlbTargetGroupArn = "unload.lb.k8s.io/aws-nlb-target-group-arn"
 )
 
 type controller struct {
@@ -78,7 +78,7 @@ func (c *controller) updateLb(key string) error {
 		// todo add pod port in
 		addDst(newConf(host, pod.Status.PodIP))
 	}
-	if arn, ok := annotations[unloadElbv2TargetGroupArn]; ok {
+	if arn, ok := annotations[unloadNlbTargetGroupArn]; ok {
 		regPod(arn, pod.Status.PodIP, unloadPodPort)
 		addWatchLbv2(arn)
 	}
@@ -182,7 +182,7 @@ func startCtl() {
 			if host, ok := annotations[unloadIngressHostname]; ok {
 				rmDst(newConf(host, pod.Status.PodIP))
 			}
-			if arn, ok := annotations[unloadElbv2TargetGroupArn]; ok {
+			if arn, ok := annotations[unloadNlbTargetGroupArn]; ok {
 				deregPod(arn, pod.Status.PodIP, unloadPodPort)
 			}
 		},

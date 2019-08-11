@@ -18,8 +18,8 @@ var (
 )
 
 var (
-	watchLbv2List = make(map[string]struct{})
-	errSetupLbv2  = fmt.Errorf("lbv2 is not setup")
+	watchNlbList = make(map[string]struct{})
+	errSetupLbv2 = fmt.Errorf("lbv2 is not setup")
 )
 
 func setupLbv2() error {
@@ -121,12 +121,12 @@ func reconcile(targetGroupArn string) {
 }
 
 func addWatchLbv2(targetGroupArn string) {
-	watchLbv2List[targetGroupArn] = struct{}{}
+	watchNlbList[targetGroupArn] = struct{}{}
 }
 
 func watchLbv2() {
 	for range time.Tick(20 * time.Second) {
-		for arn := range watchLbv2List {
+		for arn := range watchNlbList {
 			reconcile(arn)
 		}
 	}
