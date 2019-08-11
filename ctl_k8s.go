@@ -80,6 +80,7 @@ func (c *controller) updateLb(key string) error {
 	}
 	if arn, ok := annotations[unloadElbv2TargetGroupArn]; ok {
 		regPod(arn, pod.Status.PodIP, unloadPodPort)
+		addWatchLbv2(arn)
 	}
 	return nil
 }
