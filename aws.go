@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -14,9 +15,10 @@ import (
 var (
 	lbv2          *elasticloadbalancingv2.Client
 	setupLbv2Once sync.Once
+	errSetupLbv2  = fmt.Errorf("lbv2 is not setup")
 )
 
-func setupLbv2() {
+func setupLbv2() error {
 	setupLbv2Once.Do(func() {
 		cfg, err := external.LoadDefaultAWSConfig()
 		if err != nil {
@@ -32,12 +34,15 @@ func setupLbv2() {
 		}
 		lbv2 = elasticloadbalancingv2.New(cfg)
 	})
+	if lbv2 == nil {
+		return errSetupLbv2
+	}
+	return nil
 }
 
 func regPod(targetGroupArn string, ip string, port int64) {
-	setupLbv2()
-	if lbv2 == nil {
-		klog.Warningln("lbv2 is not setup")
+	if err := setupLbv2(); err != nil {
+		klog.Warningln(err)
 		return
 	}
 	req := lbv2.RegisterTargetsRequest(&elasticloadbalancingv2.RegisterTargetsInput{
@@ -56,9 +61,8 @@ func regPod(targetGroupArn string, ip string, port int64) {
 }
 
 func deregPod(targetGroupArn string, ip string, port int64) {
-	setupLbv2()
-	if lbv2 == nil {
-		klog.Warningln("lbv2 is not setup")
+	if err := setupLbv2(); err != nil {
+		klog.Warningln(err)
 		return
 	}
 	req := lbv2.DeregisterTargetsRequest(&elasticloadbalancingv2.DeregisterTargetsInput{

@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"flag"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -42,12 +41,8 @@ var proxy = &httputil.ReverseProxy{
 }
 
 func main() {
-	var master, kubeconfig string
-	flag.StringVar(&master, "master", "", "master url")
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
-	flag.Parse()
 	klog.InitFlags(nil)
-	go startCtl(master, kubeconfig)
+	go startCtl()
 	server := &http.Server{
 		Addr: ":50051",
 		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{

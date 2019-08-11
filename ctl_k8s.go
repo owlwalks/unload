@@ -11,8 +11,8 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
 )
 
@@ -138,8 +138,8 @@ func (c *controller) runWorker() {
 	}
 }
 
-func startCtl(master, kubeconfig string) {
-	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
+func startCtl() {
+	config, err := rest.InClusterConfig()
 	if err != nil {
 		klog.Fatal(err)
 	}
