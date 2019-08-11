@@ -7,10 +7,10 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"strings"
+	"time"
 
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog"
 )
 
@@ -42,20 +42,20 @@ var proxy = &httputil.ReverseProxy{
 }
 
 func main() {
-	var kubeconfig, master string
-	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
+	var master, kubeconfig string
 	flag.StringVar(&master, "master", "", "master url")
+	flag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
 	flag.Parse()
 	klog.InitFlags(nil)
-	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
-	if err != nil {
-		klog.Fatal(err)
-	}
+	go startCtl(master, kubeconfig)
 	server := &http.Server{
-		Addr:    ":50051",
-		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{}),
+		Addr: ":50051",
+		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{
+			IdleTimeout: 60 * time.Second,
+		}),
+		ReadHeaderTimeout: 5 * time.Second,
+		IdleTimeout:       60 * time.Second,
 	}
-	go startCtl(config)
 	klog.Fatal(server.ListenAndServe())
 }
 

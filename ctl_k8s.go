@@ -11,12 +11,16 @@ import (
 	"k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/workqueue"
 )
 
-const unloadIngressHostname = "unload.ingress.k8s.io/grpc-hostname"
+const (
+	unloadPodPort             = 50051
+	unloadIngressHostname     = "unload.ingress.k8s.io/grpc-hostname"
+	unloadElbv2TargetGroupArn = "unload.ingress.k8s.io/aws-elbv2-target-group-arn"
+)
 
 type controller struct {
 	indexer  cache.Indexer
@@ -71,7 +75,11 @@ func (c *controller) updateLb(key string) error {
 	}
 	annotations := pod.GetAnnotations()
 	if host, ok := annotations[unloadIngressHostname]; ok {
+		// todo add pod port in
 		addDst(newConf(host, pod.Status.PodIP))
+	}
+	if arn, ok := annotations[unloadElbv2TargetGroupArn]; ok {
+		regPod(arn, pod.Status.PodIP, unloadPodPort)
 	}
 	return nil
 }
@@ -130,12 +138,15 @@ func (c *controller) runWorker() {
 	}
 }
 
-func startCtl(config *rest.Config) {
+func startCtl(master, kubeconfig string) {
+	config, err := clientcmd.BuildConfigFromFlags(master, kubeconfig)
+	if err != nil {
+		klog.Fatal(err)
+	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
 		klog.Fatal(err)
 	}
-
 	// create the pod watcher
 	podListWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", v1.NamespaceDefault, fields.Everything())
 
@@ -169,6 +180,9 @@ func startCtl(config *rest.Config) {
 			annotations := pod.GetAnnotations()
 			if host, ok := annotations[unloadIngressHostname]; ok {
 				rmDst(newConf(host, pod.Status.PodIP))
+			}
+			if arn, ok := annotations[unloadElbv2TargetGroupArn]; ok {
+				deregPod(arn, pod.Status.PodIP, unloadPodPort)
 			}
 		},
 	}, cache.Indexers{})
