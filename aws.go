@@ -104,7 +104,8 @@ func addWatchLbv2(targetGroupArn string) {
 }
 
 func watchLbv2() {
-	for range time.Tick(12 * time.Second) {
+	// max interval of nlb healthcheck
+	for range time.Tick(30 * time.Second) {
 		for arn := range watchNlbList {
 			reconcile(arn)
 		}
