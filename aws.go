@@ -18,7 +18,6 @@ var (
 )
 
 var (
-	watchNlbList = make(map[string]struct{})
 	errSetupLbv2 = fmt.Errorf("lbv2 is not setup")
 )
 
@@ -46,13 +45,13 @@ func setupLbv2() error {
 	return nil
 }
 
-func regPod(targetGroupArn string, ip string, port int64) {
+func regPod(arn *string, ip string, port int64) {
 	if err := setupLbv2(); err != nil {
 		logger.Warningln(err)
 		return
 	}
 	req := lbv2.RegisterTargetsRequest(&elasticloadbalancingv2.RegisterTargetsInput{
-		TargetGroupArn: &targetGroupArn,
+		TargetGroupArn: arn,
 		Targets: []elasticloadbalancingv2.TargetDescription{{
 			Id:   &ip,
 			Port: &port,
@@ -67,13 +66,13 @@ func regPod(targetGroupArn string, ip string, port int64) {
 }
 
 // this will remove out-of-synced unhealthy targets
-func reconcile(targetGroupArn string) {
+func reconcile(arn *string) {
 	if err := setupLbv2(); err != nil {
 		logger.Warningln(err)
 		return
 	}
 	des := lbv2.DescribeTargetHealthRequest(&elasticloadbalancingv2.DescribeTargetHealthInput{
-		TargetGroupArn: &targetGroupArn,
+		TargetGroupArn: arn,
 	})
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
@@ -90,7 +89,7 @@ func reconcile(targetGroupArn string) {
 	}
 	if len(targets) > 0 {
 		dereg := lbv2.DeregisterTargetsRequest(&elasticloadbalancingv2.DeregisterTargetsInput{
-			TargetGroupArn: &targetGroupArn,
+			TargetGroupArn: arn,
 			Targets:        targets,
 		})
 		if _, err := dereg.Send(ctx); err != nil {
@@ -99,15 +98,9 @@ func reconcile(targetGroupArn string) {
 	}
 }
 
-func addWatchLbv2(targetGroupArn string) {
-	watchNlbList[targetGroupArn] = struct{}{}
-}
-
 func watchLbv2() {
 	// max interval of nlb healthcheck
 	for range time.Tick(30 * time.Second) {
-		for arn := range watchNlbList {
-			reconcile(arn)
-		}
+		reconcile(targetGroupArn)
 	}
 }

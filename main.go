@@ -2,6 +2,7 @@ package main
 
 import (
 	"crypto/tls"
+	"flag"
 	"math/rand"
 	"net"
 	"net/http"
@@ -14,6 +15,8 @@ import (
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
 )
+
+var targetGroupArn = flag.String("tg-arn", "", "ec2 target group arn")
 
 var h2cProxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
@@ -45,6 +48,7 @@ var proxy = &httputil.ReverseProxy{
 func main() {
 	logger.Init("", false, false, os.Stderr)
 	rand.Seed(time.Now().UnixNano())
+	flag.Parse()
 	go startCtl()
 	server := &http.Server{
 		Addr: ":50051",

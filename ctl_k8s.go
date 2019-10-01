@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	unloadPodPort           = 50051
-	unloadNlbTargetGroupArn = "unload.lb.k8s.io/aws-nlb-target-group-arn"
+	unloadPodPort     = 50051
+	unloadNlbIPTarget = "unload.lb.k8s.io/aws-nlb-ip-target"
 )
 
 type controller struct {
@@ -73,9 +73,8 @@ func (c *controller) updateLb(key string) error {
 		return nil
 	}
 	annotations := pod.GetAnnotations()
-	if arn, ok := annotations[unloadNlbTargetGroupArn]; ok {
-		regPod(arn, pod.Status.PodIP, unloadPodPort)
-		addWatchLbv2(arn)
+	if _, ok := annotations[unloadNlbIPTarget]; ok {
+		regPod(targetGroupArn, pod.Status.PodIP, unloadPodPort)
 	}
 	return nil
 }
