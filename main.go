@@ -45,6 +45,7 @@ var proxy = &httputil.ReverseProxy{
 func main() {
 	logger.Init("", false, false, os.Stderr)
 	rand.Seed(time.Now().UnixNano())
+	go startCtl()
 	server := &http.Server{
 		Addr: ":50051",
 		Handler: h2c.NewHandler(http.HandlerFunc(handler), &http2.Server{
