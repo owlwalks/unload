@@ -7,4 +7,4 @@ FROM alpine:3.10
 RUN apk --no-cache add ca-certificates
 COPY --from=0 /src/unload/unload /usr/local/bin
 EXPOSE 50051
-CMD ["unload"]
+ENTRYPOINT ["unload"]

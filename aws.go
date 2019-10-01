@@ -65,6 +65,25 @@ func regPod(arn *string, ip string, port int64) {
 	}
 }
 
+func deregPod(arn *string, ip string, port int64) {
+	if err := setupLbv2(); err != nil {
+		logger.Warningln(err)
+		return
+	}
+	req := lbv2.DeregisterTargetsRequest(&elasticloadbalancingv2.DeregisterTargetsInput{
+		TargetGroupArn: arn,
+		Targets: []elasticloadbalancingv2.TargetDescription{{
+			Id:   &ip,
+			Port: &port,
+		}},
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	if _, err := req.Send(ctx); err != nil {
+		logger.Errorln(err)
+	}
+}
+
 // this will remove out-of-synced unhealthy targets
 func reconcile(arn *string) {
 	if err := setupLbv2(); err != nil {

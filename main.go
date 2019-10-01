@@ -89,7 +89,7 @@ func resolve(hostport string) (target string, ok bool) {
 	if len(ips) > 1 {
 		index = random(0, len(ips)-1)
 	}
-	return ips[index].String() + port, true
+	return ips[index].String() + ":" + port, true
 }
 
 func random(min, max int) int {

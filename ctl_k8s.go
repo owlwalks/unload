@@ -166,6 +166,16 @@ func startCtl() {
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
+			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
+			// key function.
+			pod, ok := obj.(*v1.Pod)
+			if !ok {
+				return
+			}
+			annotations := pod.GetAnnotations()
+			if _, ok := annotations[unloadNlbIPTarget]; ok {
+				deregPod(targetGroupArn, pod.Status.PodIP, unloadPodPort)
+			}
 		},
 	}, cache.Indexers{})
 
