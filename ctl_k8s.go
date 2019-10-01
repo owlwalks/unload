@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/klog"
+	"github.com/google/logger"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -18,7 +18,6 @@ import (
 
 const (
 	unloadPodPort           = 50051
-	unloadIngressHostname   = "unload.ingress.k8s.io/grpc-hostname"
 	unloadNlbTargetGroupArn = "unload.lb.k8s.io/aws-nlb-target-group-arn"
 )
 
@@ -57,11 +56,11 @@ func (c *controller) processNextItem() bool {
 func (c *controller) updateLb(key string) error {
 	obj, exists, err := c.indexer.GetByKey(key)
 	if err != nil {
-		klog.Errorf("Fetching object with key %s from store failed with %v", key, err)
+		logger.Errorf("Fetching object with key %s from store failed with %v", key, err)
 		return err
 	}
 	if !exists {
-		klog.Infof("Pod %s does not exist anymore\n", key)
+		logger.Infof("Pod %s does not exist anymore\n", key)
 		return nil
 	}
 	// Note that you also have to check the uid if you have a local controlled resource, which
@@ -74,10 +73,6 @@ func (c *controller) updateLb(key string) error {
 		return nil
 	}
 	annotations := pod.GetAnnotations()
-	if host, ok := annotations[unloadIngressHostname]; ok {
-		// todo add pod port in
-		addDst(newConf(host, pod.Status.PodIP))
-	}
 	if arn, ok := annotations[unloadNlbTargetGroupArn]; ok {
 		regPod(arn, pod.Status.PodIP, unloadPodPort)
 		addWatchLbv2(arn)
@@ -97,7 +92,7 @@ func (c *controller) handleErr(err error, key interface{}) {
 
 	// This controller retries 5 times if something goes wrong. After that, it stops trying.
 	if c.queue.NumRequeues(key) < 5 {
-		klog.Infof("Error syncing pod %v: %v", key, err)
+		logger.Infof("Error syncing pod %v: %v", key, err)
 
 		// Re-enqueue the key rate limited. Based on the rate limiter on the
 		// queue and the re-enqueue history, the key will be processed later again.
@@ -108,7 +103,7 @@ func (c *controller) handleErr(err error, key interface{}) {
 	c.queue.Forget(key)
 	// Report to an external entity that, even after several retries, we could not successfully process this key
 	runtime.HandleError(err)
-	klog.Infof("Dropping pod %q out of the queue: %v", key, err)
+	logger.Infof("Dropping pod %q out of the queue: %v", key, err)
 }
 
 func (c *controller) run(threadiness int, stopCh chan struct{}) {
@@ -116,7 +111,7 @@ func (c *controller) run(threadiness int, stopCh chan struct{}) {
 
 	// Let the workers stop when we are done
 	defer c.queue.ShutDown()
-	klog.Info("Starting Pod controller")
+	logger.Info("Starting Pod controller")
 
 	go c.informer.Run(stopCh)
 
@@ -131,7 +126,7 @@ func (c *controller) run(threadiness int, stopCh chan struct{}) {
 	}
 
 	<-stopCh
-	klog.Info("Stopping Pod controller")
+	logger.Info("Stopping Pod controller")
 }
 
 func (c *controller) runWorker() {
@@ -142,11 +137,11 @@ func (c *controller) runWorker() {
 func startCtl() {
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		klog.Fatal(err)
+		logger.Fatal(err)
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		klog.Fatal(err)
+		logger.Fatal(err)
 	}
 	// create the pod watcher
 	podListWatcher := cache.NewListWatchFromClient(clientset.CoreV1().RESTClient(), "pods", v1.NamespaceDefault, fields.Everything())
@@ -172,19 +167,6 @@ func startCtl() {
 			}
 		},
 		DeleteFunc: func(obj interface{}) {
-			// IndexerInformer uses a delta queue, therefore for deletes we have to use this
-			// key function.
-			pod, ok := obj.(*v1.Pod)
-			if !ok {
-				return
-			}
-			annotations := pod.GetAnnotations()
-			if host, ok := annotations[unloadIngressHostname]; ok {
-				rmDst(newConf(host, pod.Status.PodIP))
-			}
-			if arn, ok := annotations[unloadNlbTargetGroupArn]; ok {
-				deregPod(arn, pod.Status.PodIP, unloadPodPort)
-			}
 		},
 	}, cache.Indexers{})
 

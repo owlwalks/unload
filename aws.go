@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws/ec2metadata"
 	"github.com/aws/aws-sdk-go-v2/aws/external"
 	"github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2"
-	"k8s.io/klog"
+	"github.com/google/logger"
 )
 
 var (
@@ -26,14 +26,14 @@ func setupLbv2() error {
 	setupLbv2Once.Do(func() {
 		cfg, err := external.LoadDefaultAWSConfig()
 		if err != nil {
-			klog.Errorln(err)
+			logger.Errorln(err)
 			return
 		}
 		// work out aws current region
 		meta := ec2metadata.New(cfg)
 		cfg.Region, err = meta.Region()
 		if err != nil {
-			klog.Errorln(err)
+			logger.Errorln(err)
 			return
 		}
 		lbv2 = elasticloadbalancingv2.New(cfg)
@@ -48,7 +48,7 @@ func setupLbv2() error {
 
 func regPod(targetGroupArn string, ip string, port int64) {
 	if err := setupLbv2(); err != nil {
-		klog.Warningln(err)
+		logger.Warningln(err)
 		return
 	}
 	req := lbv2.RegisterTargetsRequest(&elasticloadbalancingv2.RegisterTargetsInput{
@@ -58,38 +58,18 @@ func regPod(targetGroupArn string, ip string, port int64) {
 			Port: &port,
 		}},
 	})
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Second)
 	defer cancel()
 	_, err := req.Send(ctx)
 	if err != nil {
-		klog.Errorln(err)
-	}
-}
-
-func deregPod(targetGroupArn string, ip string, port int64) {
-	if err := setupLbv2(); err != nil {
-		klog.Warningln(err)
-		return
-	}
-	req := lbv2.DeregisterTargetsRequest(&elasticloadbalancingv2.DeregisterTargetsInput{
-		TargetGroupArn: &targetGroupArn,
-		Targets: []elasticloadbalancingv2.TargetDescription{{
-			Id:   &ip,
-			Port: &port,
-		}},
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	_, err := req.Send(ctx)
-	if err != nil {
-		klog.Errorln(err)
+		logger.Errorln(err)
 	}
 }
 
 // this will remove out-of-synced unhealthy targets
 func reconcile(targetGroupArn string) {
 	if err := setupLbv2(); err != nil {
-		klog.Warningln(err)
+		logger.Warningln(err)
 		return
 	}
 	des := lbv2.DescribeTargetHealthRequest(&elasticloadbalancingv2.DescribeTargetHealthInput{
@@ -99,7 +79,7 @@ func reconcile(targetGroupArn string) {
 	defer cancel()
 	res, err := des.Send(ctx)
 	if err != nil {
-		klog.Errorln(err)
+		logger.Errorln(err)
 		return
 	}
 	var targets []elasticloadbalancingv2.TargetDescription
@@ -113,9 +93,8 @@ func reconcile(targetGroupArn string) {
 			TargetGroupArn: &targetGroupArn,
 			Targets:        targets,
 		})
-		_, err := dereg.Send(ctx)
-		if err != nil {
-			klog.Errorln(err)
+		if _, err := dereg.Send(ctx); err != nil {
+			logger.Errorln(err)
 		}
 	}
 }
@@ -125,7 +104,7 @@ func addWatchLbv2(targetGroupArn string) {
 }
 
 func watchLbv2() {
-	for range time.Tick(20 * time.Second) {
+	for range time.Tick(12 * time.Second) {
 		for arn := range watchNlbList {
 			reconcile(arn)
 		}

@@ -13,8 +13,6 @@ spec:
     metadata:
       labels:
         app: fortune-teller-app
-      annotations:
-        unload.ingress.k8s.io/grpc-hostname: teller.local
     spec:
       containers:
       - name: fortune-teller-app
