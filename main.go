@@ -16,7 +16,11 @@ import (
 	"golang.org/x/net/http2/h2c"
 )
 
-var targetGroupArn = flag.String("tg-arn", "", "ec2 target group arn")
+var (
+	resolves       mstring
+	resolvesMap    = make(map[string]string)
+	targetGroupArn = flag.String("tg-arn", "", "ec2 target group arn")
+)
 
 var h2cProxy = &httputil.ReverseProxy{
 	Director: func(req *http.Request) {
@@ -48,7 +52,14 @@ var proxy = &httputil.ReverseProxy{
 func main() {
 	logger.Init("", false, false, os.Stderr)
 	rand.Seed(time.Now().UnixNano())
+	flag.Var(&resolves, "resolve", "Resolve x.staging.service to x.default.svc.cluster.local: -replace=staging.service,default.svc.cluster.local")
 	flag.Parse()
+	for _, r := range resolves {
+		splits := strings.Split(r, ",")
+		if len(splits) > 1 {
+			resolvesMap[strings.TrimSpace(splits[0])] = strings.TrimSpace(splits[1])
+		}
+	}
 	go startCtl()
 	server := &http.Server{
 		Addr: ":50051",
@@ -76,6 +87,13 @@ func resolve(hostport string) (target string, ok bool) {
 		host = hostport
 		port = "50051"
 	}
+	for k, v := range resolvesMap {
+		if strings.HasSuffix(host, k) {
+			sub := strings.TrimSuffix(host, k)
+			host = sub + v
+			break
+		}
+	}
 	ips, err := net.LookupIP(host)
 	if err != nil {
 		logger.Errorln(err)
@@ -94,4 +112,15 @@ func resolve(hostport string) (target string, ok bool) {
 
 func random(min, max int) int {
 	return min + rand.Intn(max-min)
+}
+
+type mstring []string
+
+func (m *mstring) String() string {
+	return ""
+}
+
+func (m *mstring) Set(val string) error {
+	*m = append(*m, val)
+	return nil
 }
