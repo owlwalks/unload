@@ -52,7 +52,7 @@ var proxy = &httputil.ReverseProxy{
 func main() {
 	logger.Init("", false, false, os.Stderr)
 	rand.Seed(time.Now().UnixNano())
-	flag.Var(&resolves, "resolve", "Resolve x.staging.service to x.default.svc.cluster.local: -replace=staging.service,default.svc.cluster.local")
+	flag.Var(&resolves, "resolve", "Resolve x.staging.service to x.default.svc.cluster.local: -resolve=staging.service,default.svc.cluster.local")
 	flag.Parse()
 	for _, r := range resolves {
 		splits := strings.Split(r, ",")
