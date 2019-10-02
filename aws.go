@@ -107,6 +107,7 @@ func reconcile(arn *string) {
 		}
 	}
 	if len(targets) > 0 {
+		logger.Infoln(targets)
 		dereg := lbv2.DeregisterTargetsRequest(&elasticloadbalancingv2.DeregisterTargetsInput{
 			TargetGroupArn: arn,
 			Targets:        targets,
@@ -118,8 +119,7 @@ func reconcile(arn *string) {
 }
 
 func watchLbv2() {
-	// max interval of nlb healthcheck
-	for range time.Tick(30 * time.Second) {
+	for range time.Tick(3 * time.Minute) {
 		reconcile(targetGroupArn)
 	}
 }
