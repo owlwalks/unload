@@ -107,7 +107,6 @@ func reconcile(arn *string) {
 		}
 	}
 	if len(targets) > 0 {
-		logger.Infoln(targets)
 		dereg := lbv2.DeregisterTargetsRequest(&elasticloadbalancingv2.DeregisterTargetsInput{
 			TargetGroupArn: arn,
 			Targets:        targets,
